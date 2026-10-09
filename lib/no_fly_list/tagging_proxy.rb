@@ -108,11 +108,9 @@ module NoFlyList
           # Update counter
           model.update_column("#{@context}_count", 0) if setup[:counter_cache]
 
-          # Create new tags
-          pending_list.each do |tag_name|
-            tag = find_or_create_tag(tag_name)
-            next unless tag
-
+          # Create new tags. Names differing only in case resolve to the same
+          # tag when matching is case insensitive, so tag it once.
+          pending_list.filter_map { |tag_name| find_or_create_tag(tag_name) }.uniq.each do |tag|
             attributes = {
               tag: tag,
               context: @context.to_s.singularize
@@ -378,7 +376,12 @@ module NoFlyList
       # Transform tags to lowercase for comparison
       normalized_changes = pending_list.map(&:downcase)
       existing_tags = tag_scope.where("LOWER(name) IN (?)", normalized_changes).pluck(:name)
-      missing_tags = pending_list - existing_tags
+      missing_tags = if setup[:case_sensitive]
+                       pending_list - existing_tags
+      else
+                       existing = existing_tags.map(&:downcase)
+                       pending_list.reject { |tag_name| existing.include?(tag_name.downcase) }
+      end
 
       return unless missing_tags.any?
 
@@ -397,10 +400,17 @@ module NoFlyList
     end
 
     def find_or_create_tag(tag_name)
-      if @restrict_to_existing
+      tag = find_tag(tag_name)
+      return tag if tag || @restrict_to_existing
+
+      tag_scope.create(name: tag_name)
+    end
+
+    def find_tag(tag_name)
+      if setup[:case_sensitive]
         tag_scope.find_by(name: tag_name)
       else
-        tag_scope.find_or_create_by(name: tag_name)
+        tag_scope.find_by(@tag_model.arel_table[:name].lower.eq(tag_name.downcase))
       end
     end
 

@@ -14,7 +14,7 @@ class CrewMemberTest < ActiveSupport::TestCase
   end
 
   test "assert_taggable_record" do
-    assert_taggable_record(CrewMember, :skills, :languages, :certifications)
+    assert_taggable_record(CrewMember, :skills, :roles, :languages, :certifications)
   end
 
   test "resolves the scope column from the belongs_to association" do
@@ -92,6 +92,50 @@ class CrewMemberTest < ActiveSupport::TestCase
     assert_not @zoe.save
     assert_match(/do not exist: French/, @zoe.errors.full_messages.join)
     assert_empty @zoe.reload.languages_list.to_a
+  end
+
+  test "case insensitive tags match within the scope" do
+    @alice.roles_list = "Purser"
+    @alice.save!
+    @bob.roles_list = "purser"
+    @bob.save!
+    @zoe.roles_list = "purser"
+    @zoe.save!
+
+    assert_equal [ "Purser" ], @bob.reload.roles_list.to_a
+    assert_equal @alice.roles.first, @bob.roles.first
+    assert_equal [ "purser" ], @zoe.reload.roles_list.to_a
+    assert_equal 2, CrewMemberTag.where("LOWER(name) = ?", "purser").count
+  end
+
+  test "case insensitive names that differ only in case are tagged once" do
+    @alice.roles_list = [ "Purser", "PURSER" ]
+    @alice.save!
+
+    assert_equal [ "Purser" ], @alice.reload.roles_list.to_a
+    assert_equal 1, CrewMemberTag.where(airline_id: @acme.id).count
+  end
+
+  test "case sensitive tags keep names that differ only in case apart" do
+    skip "MySQL's default collation compares names case insensitively" if model_adapter(CrewMember) == :mysql2
+
+    @alice.skills_list = "First Aid"
+    @alice.save!
+    @bob.skills_list = "first aid"
+    @bob.save!
+
+    assert_not_equal @alice.skills.first, @bob.skills.first
+  end
+
+  test "restrict_to_existing matches case insensitively within the scope" do
+    CrewMemberTag.create!(airline_id: @acme.id, name: "French")
+
+    @alice.languages_list = "french"
+    assert @alice.save
+    assert_equal [ "French" ], @alice.reload.languages_list.to_a
+
+    @zoe.languages_list = "french"
+    assert_not @zoe.save
   end
 
   test "contexts on the same tag table share the scope's tags" do

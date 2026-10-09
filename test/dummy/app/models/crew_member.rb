@@ -17,6 +17,7 @@ class CrewMember < ApplicationRecord
 
   # Each airline keeps its own vocabulary of crew tags
   has_tags :skills, scope: :airline
-  has_tags :languages, scope: :airline, restrict_to_existing: true
+  has_tags :roles, scope: :airline, case_sensitive: false
+  has_tags :languages, scope: :airline, restrict_to_existing: true, case_sensitive: false
   has_tags :certifications, polymorphic: true, scope: :airline
 end
