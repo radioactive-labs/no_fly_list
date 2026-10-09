@@ -41,7 +41,7 @@ module NoFlyList
                                    .join(tag_table).on(tag_join_condition(setup, taggable_table, tagging_table, tag_table))
                                    .where(tagging_table[:context].eq(setup.context.to_s.singularize))
         query.where(tagging_table[:taggable_type].eq(relation.name)) if setup.polymorphic
-        query.where(tag_table[:name].in(names)) if names
+        query.where(name_in(setup, tag_table, names)) if names
         query
       end
 
@@ -61,18 +61,50 @@ module NoFlyList
         column ? " AND #{tag_table_name}.#{column} = #{taggable_table_name}.#{column}" : ""
       end
 
+      # Tag name as compared by the context: the column itself, or LOWER(name)
+      # when the context is case insensitive.
+      # @return [Arel::Nodes::Node] Name expression
+      def name_column(setup, tag_table)
+        setup.case_sensitive ? tag_table[:name] : tag_table[:name].lower
+      end
+
+      # Condition matching tags named +names+. Case insensitive contexts
+      # compare LOWER(name) with LOWER of each value.
+      # @return [Arel::Nodes::Node] Name condition
+      def name_in(setup, tag_table, names)
+        return tag_table[:name].in(names) if setup.case_sensitive
+
+        name_column(setup, tag_table).in(names.map { |name| Arel::Nodes::NamedFunction.new("LOWER", [ Arel::Nodes.build_quoted(name) ]) })
+      end
+
+      # +where+ arguments for the raw SQL queries, matching (or with
+      # +negate+, excluding) tags named +names+.
+      # @return [Array] Arguments for ActiveRecord::QueryMethods#where
+      def name_in_sql(setup, tag_table, names, negate: false)
+        if setup.case_sensitive
+          [ "#{tag_table.name}.name #{negate ? 'NOT IN' : 'IN'} (?)", names ]
+        else
+          condition = name_in(setup, tag_table, names)
+          [ negate ? condition.not : condition ]
+        end
+      end
+
+      # Requested names without duplicates, ignoring case when the context is
+      # case insensitive, so counts compare against distinct names.
+      # @return [Array<String>] Distinct names
+      def distinct_names(setup, names)
+        setup.case_sensitive ? names : names.uniq(&:downcase)
+      end
+
+      # SQL counting a row's distinct matching tags: by id, or by LOWER(name)
+      # when the context is case insensitive.
+      # @return [String] Aggregate expression
+      def distinct_tag_count_sql(setup, tag_table)
+        setup.case_sensitive ? "COUNT(DISTINCT #{tag_table.name}.id)" : "COUNT(DISTINCT LOWER(#{tag_table.name}.name))"
+      end
+
       module BaseStrategy
         module_function
-
-        # Performs case-insensitive column comparison
-        # @param table [Arel::Table] Database table
-        # @param column [Symbol] Column name
-        # @param values [Array<String>] Values to compare
-        # @return [Arel::Node] Query node
-        # @abstract
-        def case_insensitive_where(table, column, values)
-          raise NotImplementedError
-        end
 
         # Defines database-specific query methods
         # @abstract

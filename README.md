@@ -235,7 +235,7 @@ scope.
 | `restrict_to_existing` | `false` | Only allow existing tags |
 | `limit` | `nil` | Maximum tags per record |
 | `counter_cache` | `false` | Enable counter cache column |
-| `case_sensitive` | `true` | Match names case sensitively when finding tags and checking `restrict_to_existing` |
+| `case_sensitive` | `true` | Match names case sensitively when finding tags, checking `restrict_to_existing` and in the query scopes |
 | `scope` | `nil` | `belongs_to` association (or column) that keeps tags unique per scope |
 | `transformer` | `'ApplicationTagTransformer'` | Custom tag parsing |
 | `tag_class_name` | `ModelTag` | Custom tag class name |

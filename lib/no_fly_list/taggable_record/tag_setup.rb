@@ -37,6 +37,9 @@ module NoFlyList
       # @return [Symbol, nil] belongs_to association (or column) that partitions tags
       attr_reader :scope
 
+      # @return [Boolean] Whether tag names are compared case sensitively
+      attr_reader :case_sensitive
+
       # Creates new tag setup configuration
       # @param taggable_klass [Class] Model to configure
       # @param context [Symbol] Tag context name
@@ -54,6 +57,7 @@ module NoFlyList
         @tagging_class_name = determine_tagging_class_name(taggable_klass, options)
         @adapter = determine_adapter
         @scope = options[:scope]
+        @case_sensitive = options.fetch(:case_sensitive, true)
       end
 
       # Column shared by the taggable and tag tables that keeps tags unique per

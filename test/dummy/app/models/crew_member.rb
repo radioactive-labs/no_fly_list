@@ -19,5 +19,5 @@ class CrewMember < ApplicationRecord
   has_tags :skills, scope: :airline
   has_tags :roles, scope: :airline, case_sensitive: false
   has_tags :languages, scope: :airline, restrict_to_existing: true, case_sensitive: false
-  has_tags :certifications, polymorphic: true, scope: :airline
+  has_tags :certifications, polymorphic: true, scope: :airline, case_sensitive: false
 end
