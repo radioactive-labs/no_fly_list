@@ -62,15 +62,7 @@ module NoFlyList
               tags = tags.flatten.compact.uniq
               return all if tags.empty?
 
-              # Build dynamic joins
-              tagged_ids = distinct
-                           .joins("INNER JOIN #{tagging_table} ON #{tagging_table}.taggable_id = #{table_name}.id")
-                           .joins("INNER JOIN #{context} ON #{context}.id = #{tagging_table}.tag_id")
-                           .where("#{context}.name IN (?)", tags)
-                           .pluck("#{table_name}.id")
-
-              # Handle empty tagged_ids explicitly for SQLite compatibility
-              where("#{table_name}.id NOT IN (?)", tagged_ids.present? ? tagged_ids : [ -1 ])
+              where(arel_table[primary_key].not_in(Query.tagged_ids(self, setup, tags)))
             }
 
             # Find records without any tags

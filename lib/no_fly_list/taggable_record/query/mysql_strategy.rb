@@ -62,13 +62,7 @@ module NoFlyList
               tags = tags.flatten.compact.uniq
               return all if tags.empty?
 
-              subquery = joins(tagging_table)
-                         .where(tagging_table[:context].eq(singular_name))
-                         .where(tagging_table.name => { context: singular_name })
-                         .where(tag_table.name => { name: tags })
-                         .select(primary_key)
-
-              where("#{table_name}.#{primary_key} NOT IN (?)", subquery)
+              where(arel_table[primary_key].not_in(Query.tagged_ids(self, setup, tags)))
             }
 
             # Find records without any tags

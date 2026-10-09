@@ -22,6 +22,29 @@ module NoFlyList
         end
       end
 
+      # Builds a subquery selecting the ids of taggable rows that have at least
+      # one tagging in the setup's context, limited to tags named +names+ when
+      # given.
+      # @param relation [ActiveRecord::Relation] Taggable relation the scope runs on
+      # @param setup [TagSetup] Tag setup configuration
+      # @param names [Array<String>, nil] Tag names to match
+      # @return [Arel::SelectManager] Subquery projecting taggable ids
+      def tagged_ids(relation, setup, names = nil)
+        taggable_table = relation.arel_table
+        tagging_table = setup.tagging_class_name.constantize.arel_table
+        tag_table = setup.tag_class_name.constantize.arel_table
+
+        query = Arel::SelectManager.new(relation)
+                                   .from(relation.table_name)
+                                   .project(taggable_table[relation.primary_key])
+                                   .join(tagging_table).on(tagging_table[:taggable_id].eq(taggable_table[relation.primary_key]))
+                                   .join(tag_table).on(tag_table[:id].eq(tagging_table[:tag_id]))
+                                   .where(tagging_table[:context].eq(setup.context.to_s.singularize))
+        query.where(tagging_table[:taggable_type].eq(relation.name)) if setup.polymorphic
+        query.where(tag_table[:name].in(names)) if names
+        query
+      end
+
       module BaseStrategy
         module_function
 
