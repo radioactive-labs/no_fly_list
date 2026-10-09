@@ -18,16 +18,19 @@ module NoFlyList
     # @param transformer [Class] Class for transforming tag strings
     # @param restrict_to_existing [Boolean] Only allow existing tags
     # @param limit [Integer, nil] Maximum number of tags allowed
+    # @param scope_column [String, nil] Column that keeps tags unique per scope
     def initialize(model, tag_model, context,
                    transformer: "ApplicationTagTransformer",
                    restrict_to_existing: false,
-                   limit: nil)
+                   limit: nil,
+                   scope_column: nil)
       @model = model
       @tag_model = tag_model
       @context = context
       @transformer = resolve_transformer(transformer)
       @restrict_to_existing = restrict_to_existing
       @limit = limit
+      @scope_column = scope_column
       @pending_changes = nil # Use nil to indicate no changes yet
       @clear_operation = false
     end
@@ -374,7 +377,7 @@ module NoFlyList
 
       # Transform tags to lowercase for comparison
       normalized_changes = pending_list.map(&:downcase)
-      existing_tags = @tag_model.where("LOWER(name) IN (?)", normalized_changes).pluck(:name)
+      existing_tags = tag_scope.where("LOWER(name) IN (?)", normalized_changes).pluck(:name)
       missing_tags = pending_list - existing_tags
 
       return unless missing_tags.any?
@@ -395,10 +398,18 @@ module NoFlyList
 
     def find_or_create_tag(tag_name)
       if @restrict_to_existing
-        @tag_model.find_by(name: tag_name)
+        tag_scope.find_by(name: tag_name)
       else
-        @tag_model.find_or_create_by(name: tag_name)
+        tag_scope.find_or_create_by(name: tag_name)
       end
+    end
+
+    # Tags available to the model: all tags, or only those sharing the
+    # model's scope value when tags are scoped.
+    def tag_scope
+      return @tag_model unless @scope_column
+
+      @tag_model.where(@scope_column => @model[@scope_column])
     end
 
     # Helper method to get the list of tags that should be saved

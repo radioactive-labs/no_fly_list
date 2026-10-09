@@ -38,11 +38,27 @@ module NoFlyList
                                    .from(relation.table_name)
                                    .project(taggable_table[relation.primary_key])
                                    .join(tagging_table).on(tagging_table[:taggable_id].eq(taggable_table[relation.primary_key]))
-                                   .join(tag_table).on(tag_table[:id].eq(tagging_table[:tag_id]))
+                                   .join(tag_table).on(tag_join_condition(setup, taggable_table, tagging_table, tag_table))
                                    .where(tagging_table[:context].eq(setup.context.to_s.singularize))
         query.where(tagging_table[:taggable_type].eq(relation.name)) if setup.polymorphic
         query.where(tag_table[:name].in(names)) if names
         query
+      end
+
+      # Join condition from a tagging to its tag. Scoped tags must also share
+      # the taggable row's scope value.
+      # @return [Arel::Nodes::Node] Join condition
+      def tag_join_condition(setup, taggable_table, tagging_table, tag_table)
+        condition = tag_table[:id].eq(tagging_table[:tag_id])
+        column = setup.scope_column
+        column ? condition.and(tag_table[column].eq(taggable_table[column])) : condition
+      end
+
+      # SQL counterpart of #tag_join_condition, appended to a raw tag join.
+      # @return [String] Extra join condition, empty for unscoped tags
+      def scope_join_sql(setup, tag_table_name, taggable_table_name)
+        column = setup.scope_column
+        column ? " AND #{tag_table_name}.#{column} = #{taggable_table_name}.#{column}" : ""
       end
 
       module BaseStrategy

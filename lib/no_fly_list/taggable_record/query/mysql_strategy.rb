@@ -28,7 +28,7 @@ module NoFlyList
                                          .project(arel_table[primary_key])
                                          .distinct
                                          .join(tagging_table).on(tagging_table[:taggable_id].eq(arel_table[primary_key]))
-                                         .join(tag_table).on(tag_table[:id].eq(tagging_table[:tag_id]))
+                                         .join(tag_table).on(Query.tag_join_condition(setup, arel_table, tagging_table, tag_table))
                                          .where(tagging_table[:context].eq(singular_name))
                                          .where(tag_table[:name].in(tags))
 
@@ -48,7 +48,7 @@ module NoFlyList
                                          .from(table_name)
                                          .project(arel_table[primary_key])
                                          .join(tagging_table).on(tagging_table[:taggable_id].eq(arel_table[primary_key]))
-                                         .join(tag_table).on(tag_table[:id].eq(tagging_table[:tag_id]))
+                                         .join(tag_table).on(Query.tag_join_condition(setup, arel_table, tagging_table, tag_table))
                                          .where(tagging_table[:context].eq(singular_name))
                                          .where(tag_table[:name].in(tags))
                                          .group(arel_table[primary_key])
@@ -67,6 +67,8 @@ module NoFlyList
 
             # Find records without any tags
             scope "without_#{context}", lambda {
+              return where(arel_table[primary_key].not_in(Query.tagged_ids(self, setup))) if setup.scope_column
+
               subquery = if setup.polymorphic
                            setup.tagging_class_name.constantize
                                 .where(context: singular_name)
@@ -96,7 +98,7 @@ module NoFlyList
                 # Build the query for records having exactly the tags
                 all_tags_query = select(arel_table[primary_key])
                                  .joins("INNER JOIN #{tagging_table.name} ON #{tagging_table.name}.taggable_id = #{table_name}.#{primary_key}")
-                                 .joins("INNER JOIN #{tag_table.name} ON #{tag_table.name}.id = #{tagging_table.name}.tag_id")
+                                 .joins("INNER JOIN #{tag_table.name} ON #{tag_table.name}.id = #{tagging_table.name}.tag_id#{Query.scope_join_sql(setup, tag_table.name, table_name)}")
                                  .where("#{tagging_table.name}.context = ?", context.to_s.singularize)
                                  .where("#{tag_table.name}.name IN (?)", tags)
                                  .group(arel_table[primary_key])
@@ -105,7 +107,7 @@ module NoFlyList
                 # Build query for records with other tags
                 other_tags_query = select(arel_table[primary_key])
                                    .joins("INNER JOIN #{tagging_table.name} ON #{tagging_table.name}.taggable_id = #{table_name}.#{primary_key}")
-                                   .joins("INNER JOIN #{tag_table.name} ON #{tag_table.name}.id = #{tagging_table.name}.tag_id")
+                                   .joins("INNER JOIN #{tag_table.name} ON #{tag_table.name}.id = #{tagging_table.name}.tag_id#{Query.scope_join_sql(setup, tag_table.name, table_name)}")
                                    .where("#{tagging_table.name}.context = ?", context.to_s.singularize)
                                    .where("#{tag_table.name}.name NOT IN (?)", tags)
 
