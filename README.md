@@ -207,6 +207,10 @@ How scoped tags behave:
   column, and the tag table needs a column with the same name. A column name
   (`scope: :entity_id`) works too. Polymorphic `belongs_to` associations are
   not supported.
+- The scope value is read through the record's reader, so a record without the
+  column can supply it from a method, such as `delegate :entity_id, to:
+  :account`. Reading and saving its tags then work as usual. The query scopes
+  below join on the column in SQL, so they need the real column.
 - Tags are found and created by name within the record's scope. Two entities
   using "VIP" get separate tags, and renaming one leaves the other alone.
 - `restrict_to_existing` only accepts tags that exist in the record's scope.
