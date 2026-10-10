@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 21) do
+ActiveRecord::Schema[8.0].define(version: 22) do
   create_table "airlines", force: :cascade do |t|
     t.string "name", null: false
     t.datetime "created_at", null: false
@@ -90,6 +90,33 @@ ActiveRecord::Schema[8.0].define(version: 21) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["airline_id"], name: "index_crew_members_on_airline_id"
+  end
+
+  create_table "crew_shift_taggings", force: :cascade do |t|
+    t.bigint "taggable_id", null: false
+    t.bigint "tag_id", null: false
+    t.string "context", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tag_id"], name: "index_crew_shift_taggings_on_tag_id"
+    t.index ["taggable_id", "tag_id"], name: "index_crew_shift_taggings_on_taggable_id_and_tag_id", unique: true
+    t.index ["taggable_id"], name: "index_crew_shift_taggings_on_taggable_id"
+  end
+
+  create_table "crew_shift_tags", force: :cascade do |t|
+    t.bigint "airline_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["airline_id", "name"], name: "index_crew_shift_tags_on_airline_id_and_name", unique: true
+  end
+
+  create_table "crew_shifts", force: :cascade do |t|
+    t.integer "crew_member_id", null: false
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["crew_member_id"], name: "index_crew_shifts_on_crew_member_id"
   end
 
   create_table "military_carrier_taggings", force: :cascade do |t|
@@ -193,6 +220,9 @@ ActiveRecord::Schema[8.0].define(version: 21) do
   add_foreign_key "crew_member_taggings", "crew_member_tags", column: "tag_id"
   add_foreign_key "crew_member_taggings", "crew_members", column: "taggable_id"
   add_foreign_key "crew_members", "airlines"
+  add_foreign_key "crew_shift_taggings", "crew_shift_tags", column: "tag_id"
+  add_foreign_key "crew_shift_taggings", "crew_shifts", column: "taggable_id"
+  add_foreign_key "crew_shifts", "crew_members"
   add_foreign_key "military_carrier_taggings", "military_carrier_tags", column: "tag_id"
   add_foreign_key "military_carrier_taggings", "military_carriers", column: "taggable_id"
   add_foreign_key "passenger_taggings", "passenger_tags", column: "tag_id"

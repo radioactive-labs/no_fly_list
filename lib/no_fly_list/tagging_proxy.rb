@@ -415,11 +415,13 @@ module NoFlyList
     end
 
     # Tags available to the model: all tags, or only those sharing the
-    # model's scope value when tags are scoped.
+    # model's scope value when tags are scoped. The value is read through the
+    # model's reader, so a taggable without the column of its own can supply it
+    # from a method, such as one delegated to a parent.
     def tag_scope
       return @tag_model unless @scope_column
 
-      @tag_model.where(@scope_column => @model[@scope_column])
+      @tag_model.where(@scope_column => @model.public_send(@scope_column))
     end
 
     # Helper method to get the list of tags that should be saved
